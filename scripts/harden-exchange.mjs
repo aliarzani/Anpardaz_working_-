@@ -18,11 +18,15 @@ s = s.replace(
 
 // Idempotency and fee constants live inside the trading component so they can later be replaced by server config.
 if (!s.includes('const EX_TAKER_FEE = 0.003;')) {
-  const marker = 'function ExchangeProTrade(';
+  const marker = 'function ExchangeProTrade('; 
   const i = s.indexOf(marker);
   if (i >= 0) {
-    const bodyStart = s.indexOf('{', i);
-    s = s.slice(0, bodyStart + 1) + '\n  const EX_TAKER_FEE = 0.003;\n  const EX_MAKER_FEE = 0.001;\n  const MAX_LEVERAGE = 20;\n  const MIN_ORDER_QTY = 0.00000001;\n' + s.slice(bodyStart + 1);
+    // The parameter type itself contains `{...}`, so do not use the first `{` after the function name.
+    // Find the actual function-body opening brace: the `){` immediately following the parameter list.
+    const bodyStart = s.indexOf('){', i);
+    if (bodyStart >= 0) {
+      s = s.slice(0, bodyStart + 2) + '\n  const EX_TAKER_FEE = 0.003;\n  const EX_MAKER_FEE = 0.001;\n  const MAX_LEVERAGE = 20;\n  const MIN_ORDER_QTY = 0.00000001;\n' + s.slice(bodyStart + 2);
+    }
   }
 }
 
@@ -61,8 +65,8 @@ s = s.replace(
 
 // Avoid reprocessing the same local order after an async UI rerender.
 s = s.replace(
-  'const newOrder:ExOrder={id:orderId,pair:`${asset}/TOMAN`,side:buy?"buy":"sell",price,amount:qty,total,status:"filled",createdAt:new Date().toISOString(),mode:"spot"};',
-  'const newOrder:ExOrder={id:orderId,clientOrderId:orderId,pair:`${asset}/TOMAN`,side:buy?"buy":"sell",price,amount:qty,filledAmount:qty,remainingAmount:0,total,status:"filled",createdAt:new Date().toISOString(),executedAt:new Date().toISOString(),mode:"spot"};'
+  'const newOrder:ExOrder={id:orderId,pair:`${asset}/USDT`,side:buy?"buy":"sell",price,amount:qty,total,status:"filled",createdAt:new Date().toISOString(),mode:"spot"};',
+  'const newOrder:ExOrder={id:orderId,clientOrderId:orderId,pair:`${asset}/USDT`,side:buy?"buy":"sell",price,amount:qty,filledAmount:qty,remainingAmount:0,total,status:"filled",createdAt:new Date().toISOString(),executedAt:new Date().toISOString(),mode:"spot"};'
 );
 
 writeFileSync(file, s);
