@@ -24,9 +24,9 @@ android {
     }
 }
 
-// Keep the Android launcher icon synchronized with the exact logo used by the app.
-// The source image is tracked by Git LFS in the Figma export. If LFS is available in
-// the build environment, hydrate it before copying the logo into Android resources.
+// Keep Android launcher assets synchronized with the exact logo used by the app.
+// The Figma-exported logo is tracked by Git LFS, so the build hydrates it when LFS
+// is available and then replaces the old Capacitor/React launcher artwork.
 def brandLogo = file("$rootDir/../src/imports/ChatGPT_Image_Aug_10__2026__06_38_53_PM__3_.png")
 
 tasks.register("syncBrandLauncherAssets") {
@@ -38,7 +38,7 @@ tasks.register("syncBrandLauncherAssets") {
                 ignoreExitValue = true
             }
         } catch (Exception ignored) {
-            // Git LFS is optional; the normal build should still proceed.
+            // Git LFS is optional; continue with checked-out assets if available.
         }
 
         if (!brandLogo.exists()) {
@@ -52,20 +52,20 @@ tasks.register("syncBrandLauncherAssets") {
             new String(bytes, 0, Math.max(0, n), "UTF-8")
         }
         if (marker.startsWith("version https://git-lfs.github.com/spec/v1")) {
-            logger.lifecycle("An Pardaz brand logo is still a Git LFS pointer; install/enable Git LFS before building the APK.")
+            logger.lifecycle("An Pardaz brand logo is still a Git LFS pointer; enable Git LFS before building the APK.")
             return
         }
 
-        // API 26+ adaptive icon foreground. The same source artwork is used so the
-        // installed launcher and the in-app branding cannot drift apart.
-        copy {
-            from brandLogo
-            into "$projectDir/src/main/res/drawable"
-            rename { "ic_launcher_foreground_brand.png" }
-        }
-
-        // Legacy launcher assets are needed by launchers that don't use adaptive icons.
+        // Android 8+ adaptive icon foreground.
         ["mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"].each { density ->
+            copy {
+                from brandLogo
+                into "$projectDir/src/main/res/mipmap-${density}"
+                rename { "ic_launcher_foreground.png" }
+                duplicatesStrategy = DuplicatesStrategy.INCLUDE
+            }
+            // Legacy launcher icon used by Android versions/launchers that don't
+            // use the adaptive icon resource.
             copy {
                 from brandLogo
                 into "$projectDir/src/main/res/mipmap-${density}"
