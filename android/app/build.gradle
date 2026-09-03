@@ -24,6 +24,66 @@ android {
     }
 }
 
+// Keep the Android launcher icon synchronized with the exact logo used by the app.
+// The source image is tracked by Git LFS in the Figma export. If LFS is available in
+// the build environment, hydrate it before copying the logo into Android resources.
+def brandLogo = file("$rootDir/../src/imports/ChatGPT_Image_Aug_10__2026__06_38_53_PM__3_.png")
+
+tasks.register("syncBrandLauncherAssets") {
+    doLast {
+        try {
+            exec {
+                workingDir rootDir.parentFile
+                commandLine "git", "lfs", "pull"
+                ignoreExitValue = true
+            }
+        } catch (Exception ignored) {
+            // Git LFS is optional; the normal build should still proceed.
+        }
+
+        if (!brandLogo.exists()) {
+            logger.lifecycle("An Pardaz brand logo not found at ${brandLogo}; keeping existing Android assets.")
+            return
+        }
+
+        def marker = brandLogo.newInputStream().withCloseable { input ->
+            byte[] bytes = new byte[40]
+            int n = input.read(bytes)
+            new String(bytes, 0, Math.max(0, n), "UTF-8")
+        }
+        if (marker.startsWith("version https://git-lfs.github.com/spec/v1")) {
+            logger.lifecycle("An Pardaz brand logo is still a Git LFS pointer; install/enable Git LFS before building the APK.")
+            return
+        }
+
+        // API 26+ adaptive icon foreground. The same source artwork is used so the
+        // installed launcher and the in-app branding cannot drift apart.
+        copy {
+            from brandLogo
+            into "$projectDir/src/main/res/drawable"
+            rename { "ic_launcher_foreground_brand.png" }
+        }
+
+        // Legacy launcher assets are needed by launchers that don't use adaptive icons.
+        ["mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"].each { density ->
+            copy {
+                from brandLogo
+                into "$projectDir/src/main/res/mipmap-${density}"
+                rename { "ic_launcher.png" }
+                duplicatesStrategy = DuplicatesStrategy.INCLUDE
+            }
+            copy {
+                from brandLogo
+                into "$projectDir/src/main/res/mipmap-${density}"
+                rename { "ic_launcher_round.png" }
+                duplicatesStrategy = DuplicatesStrategy.INCLUDE
+            }
+        }
+    }
+}
+
+preBuild.dependsOn(tasks.named("syncBrandLauncherAssets"))
+
 repositories {
     flatDir{
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
