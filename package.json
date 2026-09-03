@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node scripts/harden-exchange.mjs && node scripts/risk-engine.mjs && node scripts/prepare-build.mjs && vite --host 0.0.0.0",
-    "build": "node scripts/harden-exchange.mjs && node scripts/risk-engine.mjs && node scripts/prepare-build.mjs && vite build",
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
     "preview": "vite preview",
     "format": "oxfmt"
   },
