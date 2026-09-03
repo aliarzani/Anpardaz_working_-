@@ -11,8 +11,6 @@ android {
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
-             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
-             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
@@ -24,59 +22,23 @@ android {
     }
 }
 
-// Keep Android launcher assets synchronized with the exact logo used by the app.
-// The Figma-exported logo is tracked by Git LFS, so the build hydrates it when LFS
-// is available and then replaces the old Capacitor/React launcher artwork.
-def brandLogo = file("$rootDir/../src/imports/ChatGPT_Image_Aug_10__2026__06_38_53_PM__3_.png")
+// Use the exact app logo committed at the repository root for Android launcher assets.
+def brandLogo = file("$rootDir/../logo.png")
 
 tasks.register("syncBrandLauncherAssets") {
     doLast {
-        try {
-            exec {
-                workingDir rootDir.parentFile
-                commandLine "git", "lfs", "pull"
-                ignoreExitValue = true
-            }
-        } catch (Exception ignored) {
-            // Git LFS is optional; continue with checked-out assets if available.
-        }
-
         if (!brandLogo.exists()) {
-            logger.lifecycle("An Pardaz brand logo not found at ${brandLogo}; keeping existing Android assets.")
-            return
+            throw new GradleException("Required app logo not found: ${brandLogo}")
         }
 
-        def marker = brandLogo.newInputStream().withCloseable { input ->
-            byte[] bytes = new byte[40]
-            int n = input.read(bytes)
-            new String(bytes, 0, Math.max(0, n), "UTF-8")
-        }
-        if (marker.startsWith("version https://git-lfs.github.com/spec/v1")) {
-            logger.lifecycle("An Pardaz brand logo is still a Git LFS pointer; enable Git LFS before building the APK.")
-            return
-        }
-
-        // Android 8+ adaptive icon foreground.
         ["mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"].each { density ->
-            copy {
-                from brandLogo
-                into "$projectDir/src/main/res/mipmap-${density}"
-                rename { "ic_launcher_foreground.png" }
-                duplicatesStrategy = DuplicatesStrategy.INCLUDE
-            }
-            // Legacy launcher icon used by Android versions/launchers that don't
-            // use the adaptive icon resource.
-            copy {
-                from brandLogo
-                into "$projectDir/src/main/res/mipmap-${density}"
-                rename { "ic_launcher.png" }
-                duplicatesStrategy = DuplicatesStrategy.INCLUDE
-            }
-            copy {
-                from brandLogo
-                into "$projectDir/src/main/res/mipmap-${density}"
-                rename { "ic_launcher_round.png" }
-                duplicatesStrategy = DuplicatesStrategy.INCLUDE
+            ["ic_launcher_foreground.png", "ic_launcher.png", "ic_launcher_round.png"].each { fileName ->
+                copy {
+                    from brandLogo
+                    into "$projectDir/src/main/res/mipmap-${density}"
+                    rename { fileName }
+                    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+                }
             }
         }
     }
