@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">آن پرداز</string>
+    <string name="title_activity_main">آن پرداز</string>
+    <string name="package_name">com.anpardaz.app</string>
+    <string name="custom_url_scheme">com.anpardaz.app</string>
+</resources>

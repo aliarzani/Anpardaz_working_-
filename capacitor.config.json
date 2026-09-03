@@ -1,0 +1,6 @@
+{
+  "appId": "com.anpardaz.app",
+  "appName": "آن پرداز",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
