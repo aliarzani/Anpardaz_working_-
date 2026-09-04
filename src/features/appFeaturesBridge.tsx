@@ -1,115 +1,24 @@
 import { createRoot, type Root } from "react-dom/client";
 import NotificationSettings from "./NotificationSettings";
 import RemindersScreen from "./RemindersScreen";
-import FinancialCenter from "./FinancialCenter";
+import FinancialCenterV2 from "./FinancialCenterV2";
 
-type Feature = "notifications" | "reminders" | "finance";
-let root: Root | null = null;
-let host: HTMLDivElement | null = null;
-let dock: HTMLDivElement | null = null;
-let observer: MutationObserver | null = null;
-let profileActive = false;
-
-function closeFeature() {
-  root?.unmount();
-  root = null;
-  host?.remove();
-  host = null;
-  if (dock) dock.style.display = profileActive ? "flex" : "none";
-}
-
-function openFeature(feature: Feature) {
-  if (host) return;
-  host = document.createElement("div");
-  host.id = "anp-feature-root";
-  host.style.position = "fixed";
-  host.style.inset = "0";
-  host.style.zIndex = "10000";
-  document.body.appendChild(host);
-  root = createRoot(host);
-  if (feature === "notifications") root.render(<NotificationSettings onClose={closeFeature} />);
-  if (feature === "reminders") root.render(<RemindersScreen onClose={closeFeature} />);
-  if (feature === "finance") root.render(<FinancialCenter onClose={closeFeature} />);
-  if (dock) dock.style.display = "none";
-}
-
-function textOf(el: Element) {
-  return ((el as HTMLElement).innerText || el.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim();
-}
-
-function isProfileControl(el: Element) {
-  const text = textOf(el);
-  return text === "پروفایل" || text === "حساب کاربری" || text === "پروفایل کاربری" || text.includes("پروفایل");
-}
-
-function detectProfileState() {
-  const controls = Array.from(document.querySelectorAll("button, [role=button], a"));
-  const active = controls.some((el) => {
-    if (!isProfileControl(el)) return false;
-    const node = el as HTMLElement;
-    return node.getAttribute("aria-current") === "page" || node.classList.contains("active") || node.classList.contains("selected") || node.dataset.active === "true";
-  });
-  if (active !== profileActive) {
-    profileActive = active;
-    if (dock && !host) dock.style.display = active ? "flex" : "none";
-  }
-}
-
-function existingEntryClick(event: MouseEvent) {
-  const target = event.target as HTMLElement | null;
-  if (!target) return;
-
-  const reminder = target.closest("[data-reminders-entry], button[aria-label=\"یادآورها\"], button[aria-label=\"باز کردن یادآورها\"]");
-  if (reminder) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    openFeature("reminders");
-    return;
-  }
-
-  const notification = target.closest("button[aria-label=\"فعال یا غیرفعال کردن اعلان‌ها\"]");
-  if (notification) {
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    openFeature("notifications");
-  }
-}
-
-export function installAppFeaturesBridge() {
-  if (document.getElementById("anp-feature-dock")) return;
-  document.addEventListener("click", existingEntryClick, true);
-
-  const style = document.createElement("style");
-  style.id = "anp-feature-dock-style";
-  style.textContent = `
-    #anp-feature-dock{position:fixed;right:14px;left:14px;bottom:78px;z-index:9997;display:none;align-items:center;gap:7px;direction:rtl;padding:8px;border:1px solid rgba(0,214,176,.16);border-radius:14px;background:var(--card-bg,#071a24);box-shadow:0 8px 24px rgba(0,0,0,.16);font-family:Vazirmatn,sans-serif}
-    #anp-feature-dock .feature-label{font-size:11px;color:var(--text-muted,#8ca0aa);font-weight:600;padding:0 5px;white-space:nowrap}
-    #anp-feature-dock button{border:1px solid rgba(255,255,255,.06);background:transparent;color:var(--text-primary,#fff);font:700 12px Vazirmatn,sans-serif;padding:8px 10px;border-radius:9px;white-space:nowrap;cursor:pointer;flex:1}
-    #anp-feature-dock button:hover,#anp-feature-dock button:focus-visible{background:rgba(0,214,176,.08);outline:none}
-    #anp-feature-dock .primary{color:#00d6b0;border-color:rgba(0,214,176,.16)}
-    @media(max-width:390px){#anp-feature-dock{right:8px;left:8px;padding:6px;gap:4px}#anp-feature-dock .feature-label{display:none}#anp-feature-dock button{padding:7px 5px;font-size:11px}}
-  `;
-  document.head.appendChild(style);
-
-  dock = document.createElement("div");
-  dock.id = "anp-feature-dock";
-  dock.setAttribute("aria-label", "دسترسی سریع امکانات مالی");
-  dock.innerHTML = `
-    <span class="feature-label">دسترسی سریع</span>
-    <button type="button" data-feature="finance" class="primary" aria-label="مرکز مالی">مرکز مالی</button>
-    <button type="button" data-feature="reminders" aria-label="یادآورها">یادآورها</button>
-    <button type="button" data-feature="notifications" aria-label="تنظیمات اعلان‌ها">اعلان‌ها</button>
-  `;
-  dock.addEventListener("click", (event) => {
-    const target = event.target as HTMLElement | null;
-    const button = target?.closest("button[data-feature]") as HTMLButtonElement | null;
-    if (!button) return;
-    openFeature(button.dataset.feature as Feature);
-  });
-  document.body.appendChild(dock);
-
-  observer = new MutationObserver(() => detectProfileState());
-  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "aria-current", "data-active"] });
-  window.setTimeout(detectProfileState, 0);
-  window.setTimeout(detectProfileState, 300);
-}
+type Feature="notifications"|"reminders"|"finance"|"services";
+let root:Root|null=null;let host:HTMLDivElement|null=null;let observer:MutationObserver|null=null;
+const HOME_KEY="anp_home_services_v2";
+const NAMES=["موجودی کارت","انتقال وجه","شارژ مستقیم","بسته اینترنت","قبض","قبض‌ها","خدمات خودرو","خلافی خودرو","عوارض آزادراهی","طرح ترافیک تهران","بیمه","سامانه ثنا","قوه قضائیه","ثبت اسناد","نیکوکاری","تبدیل دلار تتر","صرافی","بازگشت وجه"];
+const txt=(e:Element)=>((e as HTMLElement).innerText||e.getAttribute("aria-label")||"").replace(/\s+/g," ").trim();
+const btns=()=>Array.from(document.querySelectorAll("button,[role=button]")) as HTMLElement[];
+const id=(b:HTMLElement)=>NAMES.find(n=>txt(b)===n||txt(b).startsWith(n+" "))||txt(b);
+const order=()=>{try{const x=JSON.parse(localStorage.getItem(HOME_KEY)||"[]");return Array.isArray(x)?x:[]}catch{return[]}};
+function close(){root?.unmount();root=null;host?.remove();host=null;}
+function open(f:Feature){close();host=document.createElement("div");host.id="anp-feature-root";Object.assign(host.style,{position:"fixed",inset:"0",zIndex:"100000"});document.body.appendChild(host);root=createRoot(host);if(f==="notifications")root.render(<NotificationSettings onClose={()=>{close();syncNotification()}}/>);if(f==="reminders")root.render(<RemindersScreen onClose={close}/>);if(f==="finance")root.render(<FinancialCenterV2 onClose={close}/>);if(f==="services")root.render(<AllServices onClose={close}/>);}
+function syncNotification(){const p=(()=>{try{return JSON.parse(localStorage.getItem("anp_notification_preferences_v1")||"{}")}catch{return{}}})();const on=Object.values(p).some(Boolean);const b=btns().find(x=>x.getAttribute("aria-label")==="فعال یا غیرفعال کردن اعلان‌ها");if(b){b.setAttribute("aria-pressed",String(on));b.dataset.notificationState=on?"on":"off";b.setAttribute("title",on?"اعلان‌ها روشن است":"اعلان‌ها خاموش است");}}
+function homeButtons(){return btns().filter(b=>NAMES.some(n=>txt(b)===n||txt(b).startsWith(n+" "))&&b.offsetParent!==null);}
+function installDrag(list:HTMLElement[]){let active:HTMLElement|null=null,press=0,drag=false,x=0,y=0;list.forEach(el=>{el.style.touchAction="manipulation";el.onpointerdown=e=>{active=el;x=e.clientX;y=e.clientY;drag=false;press=window.setTimeout(()=>{drag=true;el.classList.add("anp-long-press");navigator.vibrate?.(12)},560)};el.onpointermove=e=>{if(!active||!drag)return;const target=list.find(t=>{if(t===active)return false;const r=t.getBoundingClientRect();return e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom});if(target){target.parentElement?.insertBefore(active,target);localStorage.setItem(HOME_KEY,JSON.stringify(list.map(id)));x=e.clientX;y=e.clientY}};el.onpointerup=()=>{clearTimeout(press);el.classList.remove("anp-long-press");active=null;drag=false};el.onpointercancel=()=>{clearTimeout(press);active=null;drag=false};});}
+function mountHome(){if(document.getElementById("anp-home-enhancements"))return;const list=homeButtons();if(!list.length)return;const parent=list[0].parentElement;if(!parent)return;const saved=order();if(saved.length){const map=new Map(list.map(b=>[id(b),b]));saved.forEach(k=>{const b=map.get(k);if(b)parent.appendChild(b)})}
+ const first=list[0];const finance=document.createElement("button");finance.id="anp-home-enhancements";finance.type="button";finance.innerHTML="<b style='font-size:22px'>◈</b><span>مرکز مالی</span><small>درآمد · هزینه · پس‌انداز</small>";finance.style.cssText="border:1px solid rgba(0,214,176,.4);background:linear-gradient(145deg,rgba(0,214,176,.18),rgba(0,214,176,.04));color:inherit;border-radius:18px;padding:13px;display:flex;flex-direction:column;align-items:center;gap:3px;font:800 13px Vazirmatn,sans-serif;box-shadow:0 7px 22px rgba(0,214,176,.1)";finance.onclick=()=>open("finance");parent.insertBefore(finance,first);
+ const all=document.createElement("button");all.id="anp-all-services-button";all.type="button";all.innerHTML="<b style='font-size:22px'>＋</b><span>همه خدمات</span>";all.style.cssText="border:1px solid rgba(0,214,176,.25);background:rgba(0,214,176,.07);color:inherit;border-radius:16px;padding:12px;display:flex;align-items:center;justify-content:center;gap:7px;font:800 13px Vazirmatn,sans-serif";all.onclick=()=>open("services");parent.appendChild(all);installDrag([...homeButtons(),finance,all]);const style=document.createElement("style");style.textContent="#anp-home-enhancements.anp-long-press,#anp-all-services-button.anp-long-press{transform:scale(1.03);box-shadow:0 0 0 2px rgba(0,214,176,.3)}";document.head.appendChild(style);}
+function clickGuard(e:MouseEvent){const t=e.target as HTMLElement|null;const b=t?.closest("button") as HTMLElement|null;if(!b)return;const s=txt(b);if(b.id==="anp-home-enhancements"||b.id==="anp-all-services-button")return;if(b.getAttribute("aria-label")==="فعال یا غیرفعال کردن اعلان‌ها"){e.preventDefault();e.stopImmediatePropagation();open("notifications")}else if(s.includes("یادآورها")){e.preventDefault();e.stopImmediatePropagation();open("reminders")}}
+function AllServices({onClose}:{onClose:()=>void}){const items=NAMES.filter((x,i,a)=>a.indexOf(x)===i);return <div className="anp-all-services" dir="rtl"><header><button onClick={onClose}>‹</button><div><b>همه خدمات</b><span>انتخاب، جابه‌جایی و دسترسی به همه خدمات</span></div></header><main>{items.map(n=><button key={n} onClick={()=>{const b=btns().find(x=>id(x)===n);onClose();setTimeout(()=>b?.click(),0)}}><i>◉</i><span>{n}</span><em>›</em></button>)}</main><style>{`.anp-all-services{min-height:100%;box-sizing:border-box;background:#020e18;color:#f4fafc;padding:calc(env(safe-area-inset-top) + 14px) 14px 24px;font-family:Vazirmatn,sans-serif}.anp-all-services header{display:flex;gap:12px;align-items:center;padding:6px 0 18px}.anp-all-services header>button{width:42px;height:42px;border:0;border-radius:13px;background:#0b2230;color:#fff;font-size:29px}.anp-all-services header div{display:flex;flex-direction:column}.anp-all-services header b{font-size:20px}.anp-all-services header span{font-size:11px;color:#8ca0aa;margin-top:3px}.anp-all-services main{display:grid;grid-template-columns:1fr 1fr;gap:10px}.anp-all-services main button{min-height:78px;border:1px solid rgba(255,255,255,.07);border-radius:17px;background:#071a24;color:#fff;padding:11px;display:flex;align-items:center;gap:8px;font:700 12px Vazirmatn,sans-serif}.anp-all-services i{width:34px;height:34px;border-radius:11px;background:rgba(0,214,176,.1);color:#00d6b0;display:grid;place-items:center;font-style:normal}.anp-all-services main span{flex:1;text-align:right}.anp-all-services em{color:#718892;font-style:normal;font-size:18px}`}</style></div>}
+export function installAppFeaturesBridge(){if(document.getElementById("anp-feature-root"))return;document.addEventListener("click",clickGuard,true);observer=new MutationObserver(()=>{mountHome();syncNotification()});observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:["class","aria-current"]});setTimeout(mountHome,300);setTimeout(syncNotification,600);}
