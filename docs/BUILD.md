@@ -2,7 +2,7 @@
 
 The production web build is intentionally non-mutating. It runs Vite directly and does not rewrite `src/App.tsx`.
 
-Requirements: Node.js 22+, Java 17+.
+Requirements: Node.js 22+, Java 21+ (required by Capacitor 8).
 
 ```bash
 npm install
