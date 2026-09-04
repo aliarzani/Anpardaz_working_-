@@ -1,18 +1,14 @@
 import fs from 'node:fs';
 
+// Kept as a validation-only compatibility step. Exchange navigation is now
+// implemented directly in src/App.tsx; this script must never mutate source.
 const path = 'src/App.tsx';
-let s = fs.readFileSync(path, 'utf8');
+const s = fs.readFileSync(path, 'utf8');
 
-// Pair cards on the exchange home screen should open the normal Spot order-book view.
-s = s.replace(
-  "onClick={()=>{selectCoin(c.symbol);go('instant')}}><PairLogos base={c.symbol} baseSize={28} quoteSize={16}/><b>{c.fa}</b><small>{c.symbol}/TMN</small>",
-  "onClick={()=>{selectCoin(c.symbol);go('spot')}}><PairLogos base={c.symbol} baseSize={28} quoteSize={16}/><b>{c.fa}</b><small>{c.symbol}/TMN</small>",
-);
+if (!s.includes("selectCoin(c.symbol);go('spot')")) {
+  throw new Error('Exchange navigation source check failed: Spot route is missing.');
+}
 
-// A market-row tap should open Spot with the order book directly.
-s = s.replace(
-  "onClick={()=>{selectCoin(c.symbol);go('trade-type-select')}}><span className={favorite.includes(c.symbol)?\"star on\":\"star\"}",
-  "onClick={()=>{selectCoin(c.symbol);go('spot')}}><span className={favorite.includes(c.symbol)?\"star on\":\"star\"}",
-);
-
-fs.writeFileSync(path, s);
+if (!s.includes("view==='spot' ? <ExchangeProTrade")) {
+  throw new Error('Exchange navigation source check failed: real Spot component is missing.');
+}
