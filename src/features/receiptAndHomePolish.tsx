@@ -76,13 +76,16 @@ function addReceiptCopies() {
 
 function polishHomeFinance() {
   const finance = document.getElementById("anp-home-enhancements") as HTMLElement | null;
-  if (finance) {
-    finance.style.cssText = "grid-column:1 / -1 !important;width:100% !important;min-height:58px !important;height:auto !important;box-sizing:border-box !important;display:flex !important;flex-direction:row !important;align-items:center !important;justify-content:center !important;gap:10px !important;padding:10px 16px !important;border:1px solid rgba(0,214,176,.38) !important;background:linear-gradient(135deg,rgba(0,214,176,.16),rgba(0,214,176,.045)) !important;color:inherit !important;border-radius:18px !important;font:800 15px Vazirmatn,sans-serif !important;order:-1 !important}";
-    const small = finance.querySelector("small") as HTMLElement | null;
-    if (small) small.style.cssText = "font-size:11px !important;font-weight:600 !important;color:#91a9b2 !important;margin:0 !important";
-    const icon = finance.querySelector("b") as HTMLElement | null;
-    if (icon) icon.style.cssText = "font-size:16px !important";
-  }
+  if (!finance) return;
+  const grid = finance.parentElement;
+  const section = grid?.parentElement;
+  const heading = section ? Array.from(section.children).find((el) => /خدمات/.test((el as HTMLElement).innerText || "")) as HTMLElement | undefined : undefined;
+  if (grid && section && heading && finance.parentElement === grid) section.insertBefore(finance, grid);
+  finance.style.cssText = "width:100% !important;min-height:58px !important;height:auto !important;box-sizing:border-box !important;display:flex !important;flex-direction:row !important;align-items:center !important;justify-content:center !important;gap:10px !important;margin:10px 0 12px !important;padding:10px 16px !important;border:1px solid rgba(0,214,176,.38) !important;background:linear-gradient(135deg,rgba(0,214,176,.16),rgba(0,214,176,.045)) !important;color:inherit !important;border-radius:18px !important;font:800 15px Vazirmatn,sans-serif !important;order:0 !important}";
+  const small = finance.querySelector("small") as HTMLElement | null;
+  if (small) small.style.cssText = "font-size:11px !important;font-weight:600 !important;color:#91a9b2 !important;margin:0 !important";
+  const icon = finance.querySelector("b") as HTMLElement | null;
+  if (icon) icon.style.cssText = "font-size:16px !important";
 }
 
 function hideFinanceOnCashback() {
