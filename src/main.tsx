@@ -4,12 +4,14 @@ import App from './App'
 import { installTransactionSafetyBridge } from './features/transactionSafetyBridge'
 import { rescheduleEnabledReminders } from './features/reminders'
 import { installAppFeaturesBridge } from './features/appFeaturesBridge'
+import { installServiceCustomization } from './features/serviceCustomization'
 import { installTransferEnhancements } from './features/transferEnhancements'
 import { installExchangeDeviceFixes } from './features/exchangeDeviceFixes'
 import './index.css'
 
 installTransactionSafetyBridge()
 installAppFeaturesBridge()
+installServiceCustomization()
 installTransferEnhancements()
 installExchangeDeviceFixes()
 void rescheduleEnabledReminders().catch(() => undefined)
