@@ -19,38 +19,14 @@ function load(): SmartNotification[] {
     const raw = localStorage.getItem(EVENTS_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
-
 function save(items: SmartNotification[]) {
-  try {
-    localStorage.setItem(EVENTS_KEY, JSON.stringify(items.slice(0, 50)));
-    window.dispatchEvent(new CustomEvent(EVENTS_CHANGED));
-  } catch {}
+  try { localStorage.setItem(EVENTS_KEY, JSON.stringify(items.slice(0, 50))); window.dispatchEvent(new CustomEvent(EVENTS_CHANGED)); } catch {}
 }
-
-export function getSmartNotifications(): SmartNotification[] {
-  return load().sort((a, b) => b.createdAt - a.createdAt);
-}
-
-export function markSmartNotificationRead(id: string) {
-  save(load().map(item => item.id === id ? { ...item, read: true } : item));
-}
-
-export function emitSmartNotification(input: Omit<SmartNotification, "id" | "createdAt" | "read">) {
-  try {
-    const prefs = getNotificationPreferences();
-    if (prefs[input.key] === false) return;
-  } catch {}
-
-  const items = load();
-  const event: SmartNotification = {
-    ...input,
-    id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    createdAt: Date.now(),
-    read: false,
-  };
-  save([event, ...items]);
+export function getSmartNotifications() { return load().sort((a,b)=>b.createdAt-a.createdAt); }
+export function markSmartNotificationRead(id: string) { save(load().map(item=>item.id===id?{...item,read:true}:item)); }
+export function emitSmartNotification(input: Omit<SmartNotification,"id"|"createdAt"|"read">) {
+  try { if (getNotificationPreferences()[input.key] === false) return; } catch {}
+  save([{...input,id:`${Date.now()}_${Math.random().toString(36).slice(2,8)}`,createdAt:Date.now(),read:false}, ...load()]);
 }
