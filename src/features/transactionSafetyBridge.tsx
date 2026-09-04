@@ -1,5 +1,6 @@
 import { createRoot, type Root } from "react-dom/client";
 import { buildTransactionSafetyMessage, detectSimilarTransaction, type TransactionCandidate } from "./transactionSafety";
+import { emitSmartNotification } from "./smartNotifications";
 
 type SafetyModalProps = { status: "duplicate" | "pending"; match?: TransactionCandidate & { ageMs?: number }; onContinue: () => void; onReview: () => void; onClose: () => void };
 
@@ -26,17 +27,10 @@ function loadHistory(phone: string): TransactionCandidate[] {
     const raw = JSON.parse(localStorage.getItem(`anp_tx_${phone}`) || "[]") as Array<Record<string,unknown>>;
     const user = JSON.parse(localStorage.getItem(`anp_user_${phone}`) || "null") as { cards?: Array<{id?:string;number?:string}> } | null;
     const cardNumberById = new Map((user?.cards || []).map(card => [String(card.id || ""), readDigits(String(card.number || ""))]));
-    return raw.map(tx => ({
-      id: String(tx.id || ""),
-      sourceCard: cardNumberById.get(String(tx.fromCard || "")) || readDigits(String(tx.fromCard || "")),
-      destinationCard: readDigits(String(tx.toAddress || "")),
-      amount: Number(tx.amount) || 0,
-      createdAt: String(tx.createdAt || ""),
-      status: tx.status === "pending" ? "pending" : tx.status === "failed" ? "failed" : "done"
-    }));
+    return raw.map(tx => ({ id: String(tx.id || ""), sourceCard: cardNumberById.get(String(tx.fromCard || "")) || readDigits(String(tx.fromCard || "")), destinationCard: readDigits(String(tx.toAddress || "")), amount: Number(tx.amount) || 0, createdAt: String(tx.createdAt || ""), status: tx.status === "pending" ? "pending" : tx.status === "failed" ? "failed" : "done" }));
   } catch { return []; }
 }
 function tryOpenHistory() { const candidates = Array.from(document.querySelectorAll("button,[role='button'],a")); const historyButton = candidates.find(el => { const text = (el.textContent || "").replace(/\s+/g, " ").trim(); const label = el.getAttribute("aria-label") || ""; return /^(تاریخچه|تراکنش(?:‌| )ها|تراکنش ها)$/.test(text) || /تاریخچه|تراکنش/.test(label); }) as HTMLElement | undefined; if (historyButton) historyButton.click(); }
 function mountSafety(props: SafetyModalProps) { const host = document.createElement("div"); host.dataset.anpSafetyModal = "true"; document.body.appendChild(host); const root: Root = createRoot(host); const close = () => { root.unmount(); host.remove(); }; root.render(<SafetyModal {...props} onClose={close} onReview={() => { close(); props.onReview(); }} onContinue={() => { close(); props.onContinue(); }} />); }
 
-export function installTransactionSafetyBridge() { const handler = (event: MouseEvent) => { const button = findTransferContinueButton(event.target as Element | null); if (!button || button.dataset.anpSafetyBypass === "1") return; const screen = button.closest(".subscreen"); if (!screen) return; const candidate = readTransferCandidate(screen); if (!candidate) return; const phone = localStorage.getItem("anp_current") || ""; const result = detectSimilarTransaction(candidate, loadHistory(phone)); if (result.status === "clear") return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); mountSafety({ status: result.status, match: result.match, onContinue: () => { button.dataset.anpSafetyBypass = "1"; button.click(); window.setTimeout(() => delete button.dataset.anpSafetyBypass, 0); }, onReview: tryOpenHistory, onClose: () => undefined }); }; document.addEventListener("click", handler, true); }
+export function installTransactionSafetyBridge() { const handler = (event: MouseEvent) => { const button = findTransferContinueButton(event.target as Element | null); if (!button || button.dataset.anpSafetyBypass === "1") return; const screen = button.closest(".subscreen"); if (!screen) return; const candidate = readTransferCandidate(screen); if (!candidate) return; const phone = localStorage.getItem("anp_current") || ""; const result = detectSimilarTransaction(candidate, loadHistory(phone)); if (result.status === "clear") return; event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation(); emitSmartNotification({ key: result.status === "pending" ? "pendingTransaction" : "duplicateTransaction", title: result.status === "pending" ? "انتقال در حال بررسی" : "تراکنش مشابه پیدا شد", body: result.status === "pending" ? "این انتقال مشابه هنوز در حال بررسی است." : "یک تراکنش مشابه در بازه کوتاه اخیر پیدا شد.", action: { label: result.status === "pending" ? "مشاهده وضعیت" : "بررسی تراکنش قبلی", type: result.status === "pending" ? "transaction" : "history" } }); mountSafety({ status: result.status, match: result.match, onContinue: () => { button.dataset.anpSafetyBypass = "1"; button.click(); window.setTimeout(() => delete button.dataset.anpSafetyBypass, 0); }, onReview: tryOpenHistory, onClose: () => undefined }); }; document.addEventListener("click", handler, true); }
