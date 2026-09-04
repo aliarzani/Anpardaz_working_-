@@ -17,6 +17,7 @@ export interface Reminder {
 const STORAGE_KEY = "anp_reminders_v1";
 const CUSTOM_HORIZON_DAYS = 90;
 const MONTHLY_HORIZON = 12;
+const SCHEDULE_HORIZON = 90;
 
 function readReminders(): Reminder[] {
   try {
@@ -62,7 +63,6 @@ function baseNotificationId(id: string) {
 }
 
 function notificationId(id: string, occurrence = 0) {
-  // Keep IDs positive and stable while allowing several future occurrences.
   const base = baseNotificationId(id) % 1000000;
   return Math.max(1, (base * 100 + occurrence) % 2147483647);
 }
@@ -91,15 +91,13 @@ function buildOccurrences(reminder: Reminder) {
   const now = Date.now();
   const occurrences: Date[] = [];
 
-  if (reminder.repeat === "once") {
-    return first.getTime() > now ? [first] : [];
-  }
+  if (reminder.repeat === "once") return first.getTime() > now ? [first] : [];
 
   if (reminder.repeat === "daily" || reminder.repeat === "weekly") {
     const step = reminder.repeat === "daily" ? 1 : 7;
     const cursor = new Date(first);
     while (cursor.getTime() <= now) cursor.setDate(cursor.getDate() + step);
-    for (let i = 0; i < 30 && cursor.getTime() > now; i++) {
+    for (let i = 0; i < SCHEDULE_HORIZON; i++) {
       occurrences.push(new Date(cursor));
       cursor.setDate(cursor.getDate() + step);
     }
@@ -144,7 +142,6 @@ export async function scheduleReminderNotification(reminder?: Reminder) {
   if (!granted) return;
 
   await cancelReminderNotification(reminder.id);
-
   await LocalNotifications.schedule({
     notifications: occurrences.map((at, index) => ({
       id: notificationId(reminder.id, index),
@@ -159,7 +156,7 @@ export async function scheduleReminderNotification(reminder?: Reminder) {
 export async function cancelReminderNotification(id: string) {
   try {
     await LocalNotifications.cancel({
-      notifications: Array.from({ length: 32 }, (_, index) => ({ id: notificationId(id, index) })),
+      notifications: Array.from({ length: SCHEDULE_HORIZON }, (_, index) => ({ id: notificationId(id, index) })),
     });
   } catch {
     // Browser/dev environments may not have a native notification implementation.
