@@ -29,3 +29,14 @@ for (const item of replacements) {
   const updated = original.replace(item.from, item.to);
   if (updated !== original) writeFileSync(item.file, updated);
 }
+
+// Replace the fake text-only splash mark with the real brand image during build.
+const cssFile = 'src/index.css';
+if (existsSync(cssFile)) {
+  const css = readFileSync(cssFile, 'utf8');
+  const updatedCss = css.replace(
+    '.splash-logo-main span { color: white; font-size: 42px; font-weight: 900; line-height: 1; }',
+    '.splash-logo-main { background: transparent; box-shadow: 0 0 60px rgba(0,214,176,0.32); }\n.splash-logo-main::before { content: ""; width: 90px; height: 90px; display: block; background: url("/logo.png") center/contain no-repeat; }\n.splash-logo-main span { display: none; }',
+  );
+  if (updatedCss !== css) writeFileSync(cssFile, updatedCss);
+}
