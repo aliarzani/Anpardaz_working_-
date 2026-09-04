@@ -5,11 +5,13 @@ import { installNotificationSettingsBridge } from './features/notificationSettin
 import { installTransactionSafetyBridge } from './features/transactionSafetyBridge'
 import { rescheduleEnabledReminders } from './features/reminders'
 import { installReminderBridge } from './features/reminderBridge'
+import { installFinancialCenterBridge } from './features/financialCenterBridge'
 import './index.css'
 
 installNotificationSettingsBridge()
 installTransactionSafetyBridge()
 installReminderBridge()
+installFinancialCenterBridge()
 void rescheduleEnabledReminders().catch(() => undefined)
 
 const root = ReactDOM.createRoot(document.getElementById('root')!)
