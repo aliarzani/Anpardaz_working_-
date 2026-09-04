@@ -1,1 +1,0 @@
-Temporary recovery marker: src/App.tsx is restored from the last known-good application commit before continuing exchange fixes.
