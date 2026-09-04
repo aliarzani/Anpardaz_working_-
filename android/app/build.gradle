@@ -22,15 +22,14 @@ android {
     }
 }
 
-// Use the exact app logo committed at the repository root for Android launcher assets.
-def brandLogo = file("$rootDir/../logo.png")
+// Use the exact Figma-provided An Pardaz logo tracked in Git LFS.
+def brandLogo = file("$rootDir/../src/imports/ChatGPT_Image_Aug_10__2026__06_38_53_PM__3_.png")
 
 tasks.register("syncBrandLauncherAssets") {
     doLast {
         if (!brandLogo.exists()) {
             throw new GradleException("Required app logo not found: ${brandLogo}")
         }
-
         ["mdpi", "hdpi", "xhdpi", "xxhdpi", "xxxhdpi"].each { density ->
             ["ic_launcher_foreground.png", "ic_launcher.png", "ic_launcher_round.png"].each { fileName ->
                 copy {
