@@ -72,16 +72,11 @@ async function scan(button: HTMLElement) {
   const status = root.querySelector<HTMLElement>("[data-status]")!;
 
   try {
-    if (!navigator.mediaDevices?.getUserMedia) throw new Error("unsupported");
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
-    if (overlay !== root) { stream.getTracks().forEach(t => t.stop()); return; }
-    video.srcObject = stream; video.muted = true; await video.play();
-    stop = () => { stream.getTracks().forEach(t => t.stop()); if (video.srcObject === stream) video.srcObject = null; };
-    status.textContent = "دوربین فعال است؛ کد را داخل کادر قرار دهید.";
-
-    const reader = new BrowserMultiFormatReader(); let finished = false;
-    const controls = await reader.decodeFromConstraints({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }, video, result => {
-      if (finished || !result) return;
+    const reader = new BrowserMultiFormatReader();
+    let finished = false;
+    const constraints = { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
+    const controls = await reader.decodeFromConstraints(constraints, video, result => {
+      if (finished || !result || overlay !== root) return;
       const raw = result.getText().trim();
       const value = card ? raw.replace(/\D/g, "").slice(0, 16) : raw.replace(/^(bitcoin|ethereum|tron|bnb|litecoin):?/i, "").split("?")[0].trim();
       if ((card && value.length !== 16) || (!card && value.length < 8)) { status.textContent = card ? "شماره کارت باید ۱۶ رقمی باشد." : "آدرس شناسایی‌شده معتبر نیست."; return; }
@@ -89,8 +84,8 @@ async function scan(button: HTMLElement) {
       message(card ? "شماره کارت مقصد وارد شد" : "آدرس مقصد وارد شد");
       try { controls.stop(); } catch {} setTimeout(close, 350);
     });
-    if (overlay !== root) { try { controls.stop(); } catch {} return; }
-    const oldStop = stop; stop = () => { try { controls.stop(); } catch {} oldStop?.(); };
+    stop = () => { try { controls.stop(); } catch {} };
+    status.textContent = "دوربین فعال است؛ کد را داخل کادر قرار دهید.";
   } catch (err) {
     try { stop?.(); } catch {} stop = null;
     const name = err instanceof DOMException ? err.name : "";
