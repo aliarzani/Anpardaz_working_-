@@ -9,119 +9,19 @@ let activeControls: { stop: () => void } | null = null;
 function setInputValue(input: HTMLInputElement | HTMLTextAreaElement, value: string) {
   const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), "value")?.set;
   if (setter) setter.call(input, value); else input.value = value;
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  input.dispatchEvent(new Event("change", { bubbles: true }));
+  input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true }));
 }
-
-function visibleInputs(): (HTMLInputElement | HTMLTextAreaElement)[] {
-  return Array.from(document.querySelectorAll("input:not([type='hidden']),textarea"))
-    .filter(e => { const r = (e as HTMLElement).getBoundingClientRect(); return r.width > 0 && r.height > 0; }) as (HTMLInputElement | HTMLTextAreaElement)[];
+function visibleInputs(){return Array.from(document.querySelectorAll("input:not([type='hidden']),textarea")).filter(e=>{const r=(e as HTMLElement).getBoundingClientRect();return r.width>0&&r.height>0}) as (HTMLInputElement|HTMLTextAreaElement)[];}
+function nearbyInput(button:HTMLElement):HTMLInputElement|HTMLTextAreaElement|null{
+  const explicit=button.closest("[data-input-target]")?.querySelector("input:not([type='hidden']),textarea"); if(explicit)return explicit as HTMLInputElement|HTMLTextAreaElement;
+  let p:HTMLElement|null=button; for(let i=0;i<5&&p;i++,p=p.parentElement){const inputs=Array.from(p.querySelectorAll("input:not([type='hidden']),textarea"));if(inputs.length===1)return inputs[0] as HTMLInputElement|HTMLTextAreaElement;}
+  const focused=document.querySelector("input:focus,textarea:focus") as HTMLInputElement|HTMLTextAreaElement|null;if(focused)return focused;
+  const br=button.getBoundingClientRect();return visibleInputs().sort((a,b)=>{const ar=a.getBoundingClientRect(),rr=b.getBoundingClientRect();const da=Math.abs(ar.top+ar.height/2-br.top-br.height/2)+Math.abs(ar.left+ar.width/2-br.left)*.25;const db=Math.abs(rr.top+rr.height/2-br.top-br.height/2)+Math.abs(rr.left+rr.width/2-br.left)*.25;return da-db})[0]||null;
 }
-
-function nearbyInput(button: HTMLElement): HTMLInputElement | HTMLTextAreaElement | null {
-  const explicit = button.closest("[data-input-target]")?.querySelector("input:not([type='hidden']),textarea");
-  if (explicit) return explicit as HTMLInputElement | HTMLTextAreaElement;
-  let p: HTMLElement | null = button;
-  for (let i = 0; i < 5 && p; i++, p = p.parentElement) {
-    const inputs = Array.from(p.querySelectorAll("input:not([type='hidden']),textarea"));
-    if (inputs.length === 1) return inputs[0] as HTMLInputElement | HTMLTextAreaElement;
-  }
-  const focused = document.querySelector("input:focus,textarea:focus") as HTMLInputElement | HTMLTextAreaElement | null;
-  if (focused) return focused;
-  const br = button.getBoundingClientRect();
-  return visibleInputs().sort((a, b) => {
-    const ar = a.getBoundingClientRect(), rr = b.getBoundingClientRect();
-    const da = Math.abs((ar.top + ar.height / 2) - (br.top + br.height / 2)) + Math.abs((ar.left + ar.width / 2) - br.left) * .25;
-    const db = Math.abs((rr.top + rr.height / 2) - (br.top + br.height / 2)) + Math.abs((rr.left + rr.width / 2) - br.left) * .25;
-    return da - db;
-  })[0] || null;
-}
-
-async function readClipboardText() {
-  try { const r = await Clipboard.read(); if (r.value?.trim()) return r.value.trim(); } catch {}
-  try { return (await navigator.clipboard?.readText())?.trim() || ""; } catch { return ""; }
-}
-
-function toast(text: string) {
-  document.getElementById("anp-device-toast")?.remove();
-  const el = document.createElement("div"); el.id = "anp-device-toast"; el.dir = "rtl"; el.textContent = text;
-  el.style.cssText = "position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:100005;background:rgba(0,20,30,.96);color:#fff;border:1px solid rgba(0,214,176,.45);border-radius:14px;padding:10px 16px;font:700 12px Vazirmatn,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.35);pointer-events:none;white-space:nowrap";
-  document.body.appendChild(el); window.setTimeout(() => el.remove(), 1600);
-}
-
-async function pasteInto(button: HTMLElement) {
-  const input = nearbyInput(button);
-  if (!input) return;
-  const value = await readClipboardText();
-  if (!value) { toast("متنی برای چسباندن در کلیپ‌بورد پیدا نشد"); return; }
-  const hint = `${input.getAttribute("aria-label") || ""} ${input.getAttribute("placeholder") || ""} ${input.name || ""}`;
-  const numeric = /کد|otp|authenticator|رمز|پویا|verification|code/i.test(hint);
-  const finalValue = numeric ? value.replace(/\D/g, "").slice(0, 6) : value.trim();
-  if (!finalValue) { toast("مقدار مناسب برای این فیلد در کلیپ‌بورد نیست"); return; }
-  setInputValue(input, finalValue); input.focus({ preventScroll: true });
-  try { input.setSelectionRange(finalValue.length, finalValue.length); } catch {}
-  const original = button.textContent || "چسباندن"; button.textContent = "✓ چسبانده شد";
-  window.setTimeout(() => { if (button.isConnected) button.textContent = original; }, 1100);
-}
-
-function closeScanner() {
-  try { activeControls?.stop(); } catch {}
-  activeControls = null;
-  activeStream?.getTracks().forEach(t => { try { t.stop(); } catch {} });
-  activeStream = null;
-  activeOverlay?.remove(); activeOverlay = null;
-}
-
-async function openScanner(button: HTMLElement) {
-  closeScanner();
-  const target = nearbyInput(button);
-  if (!target) return;
-  const overlay = document.createElement("div"); overlay.dir = "rtl";
-  overlay.style.cssText = "position:fixed;inset:0;z-index:100004;background:#020e18;color:#fff;font-family:Vazirmatn,sans-serif;display:flex;flex-direction:column;align-items:center;overflow:hidden";
-  overlay.innerHTML = `<div style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 12px;box-sizing:border-box;background:rgba(0,0,0,.28);border-bottom:1px solid rgba(0,214,176,.12)"><button data-close style="border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;border-radius:12px;padding:9px 16px;font:700 13px Vazirmatn">بستن</button><b style="font-size:15px">اپلیکیشن آن پرداز</b><span style="width:64px"></span></div><div style="margin-top:28px;text-align:center;padding:0 22px"><strong data-title style="display:block;font-size:18px">اسکن بارکد کارت مقصد</strong><span style="display:block;color:rgba(255,255,255,.58);font-size:12px;margin-top:7px">بارکد را داخل کادر روبروی دوربین قرار دهید</span></div><div style="position:relative;width:min(78vw,330px);aspect-ratio:1;margin-top:24px;border:2px solid #00d6b0;border-radius:24px;overflow:hidden;background:#000;box-shadow:0 0 42px rgba(0,214,176,.15)"><video data-video autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;display:block"></video><div style="position:absolute;inset:20px;border:2px solid rgba(0,214,176,.85);border-radius:16px;pointer-events:none"></div><div style="position:absolute;left:12%;right:12%;top:50%;height:2px;background:#00d6b0;box-shadow:0 0 12px #00d6b0;animation:anpScanLine 1.35s ease-in-out infinite"></div></div><p data-status style="color:rgba(255,255,255,.58);font-size:12px;margin:20px 24px;text-align:center;line-height:1.8">در حال فعال‌سازی دوربین...</p>`;
-  const style = document.createElement("style"); style.textContent = "@keyframes anpScanLine{0%,100%{transform:translateY(-85px);opacity:.35}50%{transform:translateY(85px);opacity:1}}"; overlay.appendChild(style);
-  document.body.appendChild(overlay); activeOverlay = overlay;
-  overlay.querySelector<HTMLButtonElement>("[data-close]")!.onclick = closeScanner;
-  const video = overlay.querySelector<HTMLVideoElement>("[data-video]")!;
-  const status = overlay.querySelector<HTMLElement>("[data-status]")!;
-  const title = overlay.querySelector<HTMLElement>("[data-title]")!;
-  const hint = `${target.placeholder || ""} ${target.getAttribute("aria-label") || ""} ${button.textContent || ""}`;
-  const isCard = /کارت|شماره کارت|card/i.test(hint);
-  if (!isCard) title.textContent = "اسکن آدرس ارز دیجیتال";
-  let finished = false;
-  const finish = (raw: string) => {
-    if (finished) return;
-    const clean = isCard ? raw.replace(/\D/g, "").slice(0, 16) : raw.replace(/^(bitcoin|ethereum|litecoin|ripple|tron|bnb):?/i, "").split("?")[0].trim();
-    if ((isCard && clean.length !== 16) || (!isCard && clean.length < 8)) return;
-    finished = true; closeScanner(); setInputValue(target, clean); target.focus({ preventScroll: true });
-    toast(isCard ? "شماره کارت مقصد وارد شد" : "آدرس مقصد وارد شد");
-  };
-  try {
-    if (!navigator.mediaDevices?.getUserMedia) throw new Error("NO_CAMERA_API");
-    activeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
-    video.srcObject = activeStream; await video.play(); status.textContent = "دوربین فعال است؛ کد را داخل کادر قرار دهید.";
-    const BarcodeDetectorCtor = (window as any).BarcodeDetector;
-    const detector = BarcodeDetectorCtor ? new BarcodeDetectorCtor({ formats: ["qr_code", "code_128", "code_39", "ean_13", "ean_8"] }) : null;
-    if (detector) {
-      const scan = async () => { if (!activeOverlay || finished) return; try { const codes = await detector.detect(video); if (codes?.[0]?.rawValue) finish(codes[0].rawValue); } catch {} if (!finished && activeOverlay) window.setTimeout(scan, 180); };
-      void scan();
-    } else {
-      const reader = new BrowserMultiFormatReader();
-      activeControls = await reader.decodeFromVideoElement(video, (result, error) => { if (result) finish(result.getText()); else if (error && activeOverlay) status.textContent = "دوربین فعال است؛ کد را داخل کادر قرار دهید."; });
-    }
-  } catch (err: any) {
-    closeScanner();
-    toast(err?.name === "NotAllowedError" ? "مجوز دوربین برای آن‌پرداز فعال نیست." : err?.name === "NotFoundError" ? "دوربین دستگاه پیدا نشد." : "فعال‌سازی دوربین ممکن نشد.");
-  }
-}
-
-export function installExchangeDeviceFixes() {
-  if (installed) return; installed = true;
-  document.addEventListener("click", event => {
-    const el = event.target as HTMLElement | null; const button = el?.closest("button,[role='button']") as HTMLElement | null;
-    if (!button) return;
-    const text = (button.innerText || button.textContent || "").replace(/\s+/g, " ").trim();
-    if (/چسباندن|paste/i.test(text)) { event.preventDefault(); event.stopImmediatePropagation(); void pasteInto(button); return; }
-    if (/اسکن|scan/i.test(text)) { event.preventDefault(); event.stopImmediatePropagation(); void openScanner(button); }
-  }, true);
-}
+async function readClipboardText(){try{const r=await Clipboard.read();if(r.value?.trim())return r.value.trim()}catch{}try{return(await navigator.clipboard?.readText())?.trim()||""}catch{return ""}}
+function toast(text:string){document.getElementById("anp-device-toast")?.remove();const el=document.createElement("div");el.id="anp-device-toast";el.dir="rtl";el.textContent=text;el.style.cssText="position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:100005;background:rgba(0,20,30,.96);color:#fff;border:1px solid rgba(0,214,176,.45);border-radius:14px;padding:10px 16px;font:700 12px Vazirmatn,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.35);pointer-events:none;white-space:nowrap";document.body.appendChild(el);setTimeout(()=>el.remove(),1600)}
+async function pasteInto(button:HTMLElement){const input=nearbyInput(button);if(!input)return;const value=await readClipboardText();if(!value){toast("متنی برای چسباندن در کلیپ‌بورد پیدا نشد");return}const hint=`${input.getAttribute("aria-label")||""} ${input.getAttribute("placeholder")||""} ${input.name||""}`;const numeric=/کد|otp|authenticator|رمز|پویا|verification|code/i.test(hint);const finalValue=numeric?value.replace(/\D/g,"").slice(0,6):value.trim();if(!finalValue){toast("مقدار مناسب برای این فیلد در کلیپ‌بورد نیست");return}setInputValue(input,finalValue);input.focus({preventScroll:true});try{input.setSelectionRange(finalValue.length,finalValue.length)}catch{}const original=button.textContent||"چسباندن";button.textContent="✓ چسبانده شد";setTimeout(()=>{if(button.isConnected)button.textContent=original},1100)}
+function closeScanner(){try{activeControls?.stop()}catch{}activeControls=null;activeStream?.getTracks().forEach(t=>{try{t.stop()}catch{}});activeStream=null;activeOverlay?.remove();activeOverlay=null}
+async function openScanner(button:HTMLElement){closeScanner();const target=nearbyInput(button);if(!target)return;const overlay=document.createElement("div");overlay.dir="rtl";overlay.style.cssText="position:fixed;inset:0;z-index:100004;background:#020e18;color:#fff;font-family:Vazirmatn,sans-serif;display:flex;flex-direction:column;align-items:center;overflow:hidden";overlay.innerHTML=`<div style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 12px;box-sizing:border-box;background:rgba(0,0,0,.28);border-bottom:1px solid rgba(0,214,176,.12)"><button data-close style="border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;border-radius:12px;padding:9px 16px;font:700 13px Vazirmatn">بستن</button><b style="font-size:15px">اپلیکیشن آن پرداز</b><span style="width:64px"></span></div><div style="margin-top:28px;text-align:center;padding:0 22px"><strong data-title style="display:block;font-size:18px">اسکن بارکد کارت مقصد</strong><span style="display:block;color:rgba(255,255,255,.58);font-size:12px;margin-top:7px">بارکد را داخل کادر روبروی دوربین قرار دهید</span></div><div style="position:relative;width:min(78vw,330px);aspect-ratio:1;margin-top:24px;border:2px solid #00d6b0;border-radius:24px;overflow:hidden;background:#000;box-shadow:0 0 42px rgba(0,214,176,.15)"><video data-video autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;display:block"></video><div style="position:absolute;inset:20px;border:2px solid rgba(0,214,176,.85);border-radius:16px;pointer-events:none"></div><div style="position:absolute;left:12%;right:12%;top:50%;height:2px;background:#00d6b0;box-shadow:0 0 12px #00d6b0;animation:anpScanLine 1.35s ease-in-out infinite"></div></div><p data-status style="color:rgba(255,255,255,.58);font-size:12px;margin:20px 24px;text-align:center;line-height:1.8">در حال فعال‌سازی دوربین...</p>`;const style=document.createElement("style");style.textContent="@keyframes anpScanLine{0%,100%{transform:translateY(-85px);opacity:.35}50%{transform:translateY(85px);opacity:1}}";overlay.appendChild(style);document.body.appendChild(overlay);activeOverlay=overlay;overlay.querySelector<HTMLButtonElement>("[data-close]")!.onclick=closeScanner;const video=overlay.querySelector<HTMLVideoElement>("[data-video]")!,status=overlay.querySelector<HTMLElement>("[data-status]")!,title=overlay.querySelector<HTMLElement>("[data-title]")!;const hint=`${target.placeholder||""} ${target.getAttribute("aria-label")||""} ${button.textContent||""}`;const isCard=/کارت|شماره کارت|card/i.test(hint);if(!isCard)title.textContent="اسکن آدرس ارز دیجیتال";let finished=false;const finish=(raw:string)=>{if(finished)return;const clean=isCard?raw.replace(/\D/g,"").slice(0,16):raw.replace(/^(bitcoin|ethereum|litecoin|ripple|tron|bnb):?/i,"").split("?")[0].trim();if((isCard&&clean.length!==16)||(!isCard&&clean.length<8))return;finished=true;closeScanner();setInputValue(target,clean);target.focus({preventScroll:true});toast(isCard?"شماره کارت مقصد وارد شد":"آدرس مقصد وارد شد")};try{if(!navigator.mediaDevices?.getUserMedia)throw new Error("NO_CAMERA_API");activeStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1280},height:{ideal:720}},audio:false});video.srcObject=activeStream;await video.play();status.textContent="دوربین فعال است؛ کد را داخل کادر قرار دهید.";const BarcodeDetectorCtor=(window as any).BarcodeDetector;const detector=BarcodeDetectorCtor?new BarcodeDetectorCtor({formats:["qr_code","code_128","code_39","ean_13","ean_8"]}):null;if(detector){const scan=async()=>{if(!activeOverlay||finished)return;try{const codes=await detector.detect(video);if(codes?.[0]?.rawValue)finish(codes[0].rawValue)}catch{}if(!finished&&activeOverlay)setTimeout(scan,180)};void scan()}else{const reader=new BrowserMultiFormatReader();activeControls=await reader.decodeFromVideoElement(video,(result,error)=>{if(result)finish(result.getText());else if(error&&activeOverlay)status.textContent="دوربین فعال است؛ کد را داخل کادر قرار دهید."})}}catch(err:any){closeScanner();toast(err?.name==="NotAllowedError"?"مجوز دوربین برای آن‌پرداز فعال نیست.":err?.name==="NotFoundError"?"دوربین دستگاه پیدا نشد.":"فعال‌سازی دوربین ممکن نشد.")}}
+function styleDeviceButtons(){for(const el of Array.from(document.querySelectorAll("button,[role='button']")) as HTMLElement[]){const text=(el.innerText||el.textContent||"").replace(/\s+/g," ").trim();if(/اسکن/i.test(text)&&!el.dataset.anpScanStyled){el.dataset.anpScanStyled="1";el.setAttribute("aria-label",el.getAttribute("aria-label")||"اسکن بارکد کارت مقصد");el.style.cssText+=";width:42px!important;height:42px!important;min-width:42px!important;padding:0!important;border-radius:12px!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;font-size:0!important;line-height:1!important;flex:0 0 42px!important;overflow:hidden!important;";el.innerHTML="<span aria-hidden='true' style='font-size:20px;line-height:1'>▣</span>";}}}
+export function installExchangeDeviceFixes(){if(installed)return;installed=true;const style=document.createElement("style");style.textContent="[data-anp-scan-styled='1']{box-sizing:border-box!important;border:1px solid rgba(0,214,176,.32)!important;background:rgba(0,214,176,.08)!important;color:#00d6b0!important}.anp-device-scan-label{font:700 12px Vazirmatn,sans-serif!important}";document.head.appendChild(style);const observer=new MutationObserver(()=>styleDeviceButtons());observer.observe(document.body,{childList:true,subtree:true});setTimeout(styleDeviceButtons,350);setTimeout(styleDeviceButtons,1000);document.addEventListener("click",event=>{const el=event.target as HTMLElement|null;const button=el?.closest("button,[role='button']") as HTMLElement|null;if(!button)return;const text=(button.getAttribute("aria-label")||button.innerText||button.textContent||"").replace(/\s+/g," ").trim();if(/چسباندن|paste/i.test(text)){event.preventDefault();event.stopImmediatePropagation();void pasteInto(button);return}if(/اسکن|scan/i.test(text)){event.preventDefault();event.stopImmediatePropagation();void openScanner(button)}},true)}
