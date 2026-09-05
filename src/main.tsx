@@ -12,7 +12,6 @@ import './index.css'
 
 installTransactionSafetyBridge()
 installAppFeaturesBridge()
-installServiceCustomizationV2()
 installExchangeServiceCustomization()
 installTransferEnhancements()
 installExchangeDeviceFixesV2()
@@ -20,3 +19,7 @@ void rescheduleEnabledReminders().catch(() => undefined)
 
 const root = ReactDOM.createRoot(document.getElementById('root')!)
 root.render(<React.StrictMode><App /></React.StrictMode>)
+
+// Service customization observes and reorders live React DOM nodes. Install it
+// only after the first render so it cannot interfere with React's initial mount.
+requestAnimationFrame(() => installServiceCustomizationV2())
